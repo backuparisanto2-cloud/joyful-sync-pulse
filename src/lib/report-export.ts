@@ -76,27 +76,51 @@ export async function exportPdf(
 
   const doc = new jsPDF({ orientation: cols.length > 6 ? "landscape" : "portrait", unit: "pt" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const navy: [number, number, number] = [26, 54, 93];
+  const softBlue: [number, number, number] = [237, 243, 250];
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(meta.title, 40, 44);
+  doc.setFont("times", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...navy);
+  doc.text("LAVIN KOST PURWOKERTO", 40, 40);
+  doc.setFont("times", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(20);
+  doc.text(meta.title, 40, 60);
+
+  doc.setDrawColor(...navy);
+  doc.setLineWidth(1);
+  doc.line(40, 68, pageWidth - 40, 68);
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(110);
-  doc.text(`Periode: ${meta.periode}`, 40, 60);
-  doc.text(`Lingkup: ${meta.lingkup} · Masa manfaat: ${meta.masaManfaat} tahun`, 40, 73);
-  doc.text(meta.ringkasan.map((r) => `${r.label}: ${r.value}`).join("   |   "), 40, 86, {
+  doc.setTextColor(90);
+  doc.text(`Periode: ${meta.periode}`, 40, 84);
+  doc.text(`Lingkup: ${meta.lingkup} · Masa manfaat: ${meta.masaManfaat} tahun`, 40, 96);
+  doc.text(
+    `Dicetak: ${new Date().toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}`,
+    40,
+    108,
+  );
+  doc.text(meta.ringkasan.map((r) => `${r.label}: ${r.value}`).join("   |   "), 40, 122, {
     maxWidth: pageWidth - 80,
   });
   doc.setTextColor(0);
 
   autoTable(doc, {
-    startY: 104,
+    startY: 138,
     head: [cols.map((c) => c.config.label)],
     body: rows.map((row) => cols.map((c) => formatCell(c.def.value(row), c.def.type))),
-    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
-    headStyles: { fillColor: [26, 24, 20], textColor: [214, 183, 106], fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [248, 246, 241] },
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+      overflow: "linebreak",
+      lineColor: [205, 219, 234],
+      lineWidth: 0.5,
+      textColor: [35, 42, 54],
+    },
+    headStyles: { fillColor: navy, textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: softBlue },
     columnStyles: Object.fromEntries(
       cols.map((c, i) => [
         i,
@@ -106,14 +130,15 @@ export async function exportPdf(
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: () => {
       const page = doc.getNumberOfPages();
+      const bottom = doc.internal.pageSize.getHeight();
+      doc.setDrawColor(205, 219, 234);
+      doc.setLineWidth(0.5);
+      doc.line(40, bottom - 32, pageWidth - 40, bottom - 32);
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.setTextColor(130);
-      doc.text(
-        `Halaman ${page}`,
-        pageWidth - 40,
-        doc.internal.pageSize.getHeight() - 20,
-        { align: "right" },
-      );
+      doc.setTextColor(120);
+      doc.text(meta.title, 40, bottom - 18);
+      doc.text(`Halaman ${page}`, pageWidth - 40, bottom - 18, { align: "right" });
       doc.setTextColor(0);
     },
   });
