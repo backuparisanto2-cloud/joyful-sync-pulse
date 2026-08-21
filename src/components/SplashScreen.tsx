@@ -38,8 +38,9 @@ export function SplashScreen() {
           alt="Bangunan Lavin Kost Purwokerto"
           className="h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/45 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
       </div>
+
 
       <div className="relative -mt-24 px-8 pb-14 text-center">
         <img
