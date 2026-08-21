@@ -131,6 +131,27 @@ function SharedFacilities() {
             </button>
           ))}
         </div>
+
+        {conditionOptions.length > 2 ? (
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {conditionOptions.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCondition(c)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                  c === condition
+                    ? "border-gold bg-accent text-foreground"
+                    : "border-gold-line text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {c === "Semua" ? "Semua kondisi" : c}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <p className="mt-2 text-xs text-muted-foreground">{list.length} fasilitas ditemukan</p>
       </div>
 
       {shared.isLoading ? (
