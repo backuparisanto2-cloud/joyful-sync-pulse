@@ -584,7 +584,34 @@ function LaporanPage() {
             </table>
           </div>
         </section>
+
+        <Dialog open={Boolean(preview)} onOpenChange={(open) => (open ? null : closePreview())}>
+          <DialogContent className="max-w-4xl border-gold-line">
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl">Pratinjau laporan PDF</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Periode: {periodeLabel} · Lingkup: {meta.lingkup} · {rows.length} baris
+            </p>
+            {preview ? (
+              <iframe
+                src={preview}
+                title="Pratinjau laporan PDF"
+                className="h-[65vh] w-full rounded-lg border border-gold-line"
+              />
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closePreview}>
+                Tutup
+              </Button>
+              <Button onClick={() => handleExport("pdf")}>
+                <FileText className="mr-2 h-4 w-4" /> Unduh PDF
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
+
     </AppShell>
   );
 }
