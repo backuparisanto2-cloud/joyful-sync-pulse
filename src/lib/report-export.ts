@@ -177,5 +177,25 @@ async function buildPdf(rows: EnrichedRow[], columns: ColumnConfig[], meta: Expo
     },
   });
 
+  return doc;
+}
+
+export async function exportPdf(
+  rows: EnrichedRow[],
+  columns: ColumnConfig[],
+  meta: ExportMeta,
+  filename: string,
+) {
+  const doc = await buildPdf(rows, columns, meta);
   doc.save(filename);
 }
+
+export async function pdfPreviewUrl(
+  rows: EnrichedRow[],
+  columns: ColumnConfig[],
+  meta: ExportMeta,
+) {
+  const doc = await buildPdf(rows, columns, meta);
+  return URL.createObjectURL(doc.output("blob"));
+}
+
