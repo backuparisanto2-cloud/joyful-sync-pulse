@@ -50,6 +50,7 @@ export const Route = createFileRoute("/fasilitas")({
 function SharedFacilities() {
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState<string>("Semua");
+  const [condition, setCondition] = useState<string>("Semua");
   const queryClient = useQueryClient();
   const shared = useQuery(sharedItemsQuery);
 
