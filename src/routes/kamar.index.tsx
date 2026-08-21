@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { Input } from "@/components/ui/input";
 import { allRoomItemsQuery, roomsQuery } from "@/lib/inventory";
 
 type Search = { lantai: number };
@@ -9,7 +12,7 @@ type Search = { lantai: number };
 export const Route = createFileRoute("/kamar/")({
   validateSearch: (search: Record<string, unknown>): Search => {
     const raw = Number(search["lantai"]);
-    return { lantai: raw === 2 || raw === 3 ? raw : 1 };
+    return { lantai: raw === 0 || raw === 2 || raw === 3 ? raw : 1 };
   },
   head: () => ({
     meta: [
@@ -17,37 +20,79 @@ export const Route = createFileRoute("/kamar/")({
       {
         name: "description",
         content:
-          "Daftar 32 kamar Lavin Kost Purwokerto per lantai beserta jumlah inventaris tiap kamar.",
+          "Daftar 32 kamar Lavin Kost Purwokerto per lantai beserta jumlah inventaris tiap kamar, lengkap dengan pencarian dan filter kondisi.",
       },
       { property: "og:title", content: "Daftar Kamar — Inventaris Lavin Kost" },
       {
         property: "og:description",
-        content: "Pilih kamar untuk mencatat, menambah, atau mengurangi fasilitas kamar.",
+        content: "Cari kamar atau barang, filter per lantai dan kondisi, lalu catat inventarisnya.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: RoomsPage,
 });
 
+type Status = "semua" | "masalah" | "baik" | "kosong";
+
+const STATUS_LABEL: Record<Status, string> = {
+  semua: "Semua kondisi",
+  masalah: "Perlu perhatian",
+  baik: "Semua baik",
+  kosong: "Belum ada barang",
+};
+
 function RoomsPage() {
   const { lantai } = Route.useSearch();
   const rooms = useQuery(roomsQuery);
   const items = useQuery(allRoomItemsQuery);
+  const [keyword, setKeyword] = useState("");
+  const [status, setStatus] = useState<Status>("semua");
 
-  const perRoom = new Map<string, { total: number; masalah: number }>();
-  for (const item of items.data ?? []) {
-    const entry = perRoom.get(item.room_id) ?? { total: 0, masalah: 0 };
-    entry.total += item.quantity;
-    if (item.condition !== "Baik") entry.masalah += 1;
-    perRoom.set(item.room_id, entry);
-  }
+  const perRoom = useMemo(() => {
+    const map = new Map<string, { total: number; masalah: number; jenis: number; names: string }>();
+    for (const item of items.data ?? []) {
+      const entry = map.get(item.room_id) ?? { total: 0, masalah: 0, jenis: 0, names: "" };
+      entry.total += item.quantity;
+      entry.jenis += 1;
+      if (item.condition !== "Baik") entry.masalah += 1;
+      entry.names += ` ${item.name.toLowerCase()}`;
+      map.set(item.room_id, entry);
+    }
+    return map;
+  }, [items.data]);
 
-  const list = (rooms.data ?? []).filter((r) => r.floor === lantai);
+  const q = keyword.trim().toLowerCase();
+  const list = (rooms.data ?? []).filter((room) => {
+    if (lantai !== 0 && room.floor !== lantai) return false;
+    const stat = perRoom.get(room.id);
+    if (status === "masalah" && !(stat && stat.masalah > 0)) return false;
+    if (status === "baik" && !(stat && stat.jenis > 0 && stat.masalah === 0)) return false;
+    if (status === "kosong" && stat && stat.jenis > 0) return false;
+    if (!q) return true;
+    return (
+      room.number.toLowerCase().includes(q) ||
+      (room.notes ?? "").toLowerCase().includes(q) ||
+      (stat?.names ?? "").includes(q)
+    );
+  });
 
   return (
-    <AppShell title="Kamar" subtitle="Pilih kamar untuk melihat dan mengubah inventarisnya.">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {[1, 2, 3].map((floor) => (
+    <AppShell title="Kamar" subtitle="Cari kamar atau barang, lalu ubah inventarisnya.">
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="Cari nomor kamar atau nama barang..."
+          className="h-11 pl-9"
+          aria-label="Cari kamar atau barang"
+        />
+      </div>
+
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        {[0, 1, 2, 3].map((floor) => (
           <Link
             key={floor}
             to="/kamar"
@@ -58,12 +103,31 @@ function RoomsPage() {
                 : "border-gold-line text-muted-foreground hover:bg-accent"
             }`}
           >
-            Lantai {floor}
+            {floor === 0 ? "Semua lantai" : `Lantai ${floor}`}
           </Link>
         ))}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+        {(Object.keys(STATUS_LABEL) as Status[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStatus(s)}
+            className={`shrink-0 rounded-full border px-4 py-2 text-sm transition-colors ${
+              s === status
+                ? "border-gold bg-gold text-primary-foreground"
+                : "border-gold-line text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            {STATUS_LABEL[s]}
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">{list.length} kamar ditemukan</p>
+
+      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {rooms.isLoading
           ? Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl border border-gold-line" />
@@ -89,6 +153,12 @@ function RoomsPage() {
               );
             })}
       </div>
+
+      {!rooms.isLoading && list.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Tidak ada kamar yang cocok dengan pencarian atau filter.
+        </p>
+      ) : null}
     </AppShell>
   );
 }
