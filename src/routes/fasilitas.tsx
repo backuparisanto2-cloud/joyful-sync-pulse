@@ -22,12 +22,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   addSharedItem,
   deleteSharedItem,
   sharedItemsQuery,
   updateSharedItem,
 } from "@/lib/inventory";
 import { formInitial, itemPayload } from "@/lib/item-payload";
+
 
 export const Route = createFileRoute("/fasilitas")({
   head: () => ({
