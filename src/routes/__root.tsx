@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "description",
         content: "Pencatatan inventaris fasilitas utama dan fasilitas per kamar Lavin Kost Purwokerto.",
       },
-      { name: "theme-color", content: "#C9A227" },
+      { name: "theme-color", content: "#ffffff" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Lavin Inventaris" },
       { property: "og:title", content: "Inventaris Lavin Kost Purwokerto" },
