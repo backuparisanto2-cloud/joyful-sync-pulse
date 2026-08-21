@@ -600,14 +600,22 @@ function LaporanPage() {
                 className="h-[65vh] w-full rounded-lg border border-gold-line"
               />
             ) : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={closePreview}>
                 Tutup
               </Button>
+              {preview ? (
+                <Button variant="outline" asChild>
+                  <a href={preview} target="_blank" rel="noreferrer">
+                    Buka di tab baru
+                  </a>
+                </Button>
+              ) : null}
               <Button onClick={() => handleExport("pdf")}>
                 <FileText className="mr-2 h-4 w-4" /> Unduh PDF
               </Button>
             </div>
+
           </DialogContent>
         </Dialog>
       </div>
