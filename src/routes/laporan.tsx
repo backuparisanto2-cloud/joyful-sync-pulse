@@ -187,8 +187,10 @@ function LaporanPage() {
   };
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  async function handleExport(kind: "pdf" | "excel") {
+  async function handleExport(kind: "pdf" | "excel" | "csv") {
     if (!visibleColumns.length) {
       toast.error("Pilih minimal satu kolom sebelum ekspor.");
       return;
@@ -196,14 +198,45 @@ function LaporanPage() {
     try {
       if (kind === "pdf") {
         await exportPdf(rows, columns, meta, `laporan-inventaris-${stamp}.pdf`);
-      } else {
+      } else if (kind === "excel") {
         await exportExcel(rows, columns, meta, `laporan-inventaris-${stamp}.xlsx`);
+      } else {
+        exportCsv(rows, columns, meta, `laporan-inventaris-${stamp}.csv`);
       }
-      toast.success(`Laporan ${kind === "pdf" ? "PDF" : "Excel"} berhasil diunduh.`);
+      toast.success(
+        `Laporan ${kind === "pdf" ? "PDF" : kind === "excel" ? "Excel" : "CSV"} berhasil diunduh.`,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal mengekspor laporan.");
     }
   }
+
+  async function openPreview() {
+    if (!visibleColumns.length) {
+      toast.error("Pilih minimal satu kolom sebelum pratinjau.");
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const url = await pdfPreviewUrl(rows, columns, meta);
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat pratinjau.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
 
   function toggleSort(key: ColumnKey) {
     setSort((prev) =>
