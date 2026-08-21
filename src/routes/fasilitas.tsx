@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
+
 
 import { AppShell } from "@/components/AppShell";
 import { InventoryItemCard } from "@/components/InventoryItemCard";
