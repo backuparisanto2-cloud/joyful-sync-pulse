@@ -10,27 +10,37 @@ export type TextSizeKey = (typeof TEXT_SIZES)[number]["key"];
 
 const STORAGE_KEY = "lavin-text-size";
 
+let current: TextSizeKey = "normal";
+const listeners = new Set<(key: TextSizeKey) => void>();
+
 function apply(key: TextSizeKey) {
   const found = TEXT_SIZES.find((s) => s.key === key) ?? TEXT_SIZES[0];
   document.documentElement.style.setProperty("--app-font-size", `${found.px}px`);
 }
 
 export function useTextSize() {
-  const [size, setSize] = useState<TextSizeKey>("normal");
+  const [size, setSizeState] = useState<TextSizeKey>(current);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as TextSizeKey | null;
-    if (stored && TEXT_SIZES.some((s) => s.key === stored)) {
-      setSize(stored);
+    if (stored && TEXT_SIZES.some((s) => s.key === stored) && stored !== current) {
+      current = stored;
       apply(stored);
+      listeners.forEach((fn) => fn(stored));
     }
+    listeners.add(setSizeState);
+    setSizeState(current);
+    return () => {
+      listeners.delete(setSizeState);
+    };
   }, []);
 
-  const change = useCallback((key: TextSizeKey) => {
-    setSize(key);
+  const setSize = useCallback((key: TextSizeKey) => {
+    current = key;
     apply(key);
     window.localStorage.setItem(STORAGE_KEY, key);
+    listeners.forEach((fn) => fn(key));
   }, []);
 
-  return { size, setSize: change };
+  return { size, setSize };
 }
