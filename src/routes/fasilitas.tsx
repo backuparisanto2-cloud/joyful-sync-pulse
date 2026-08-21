@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
+
 
 import { AppShell } from "@/components/AppShell";
 import { InventoryItemCard } from "@/components/InventoryItemCard";
@@ -21,12 +22,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   addSharedItem,
   deleteSharedItem,
   sharedItemsQuery,
   updateSharedItem,
 } from "@/lib/inventory";
 import { formInitial, itemPayload } from "@/lib/item-payload";
+
 
 export const Route = createFileRoute("/fasilitas")({
   head: () => ({
@@ -47,10 +56,32 @@ export const Route = createFileRoute("/fasilitas")({
   component: SharedFacilities,
 });
 
+type SortKey =
+  | "nama-asc"
+  | "nama-desc"
+  | "kategori-asc"
+  | "lokasi-asc"
+  | "harga-desc"
+  | "jumlah-desc";
+
+const SORT_LABEL: Record<SortKey, string> = {
+  "nama-asc": "Nama A → Z",
+  "nama-desc": "Nama Z → A",
+  "kategori-asc": "Kategori A → Z",
+  "lokasi-asc": "Lokasi / lantai A → Z",
+  "harga-desc": "Harga tertinggi",
+  "jumlah-desc": "Jumlah terbanyak",
+};
+
+const PAGE_SIZES = [10, 25, 50, 100];
+
 function SharedFacilities() {
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState<string>("Semua");
   const [condition, setCondition] = useState<string>("Semua");
+  const [sort, setSort] = useState<SortKey>("nama-asc");
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const shared = useQuery(sharedItemsQuery);
 
@@ -68,14 +99,48 @@ function SharedFacilities() {
     ...Array.from(new Set(all.map((i) => i.condition))).sort(),
   ];
   const q = keyword.trim().toLowerCase();
-  const list = all.filter((i) => {
-    if (category !== "Semua" && i.category !== category) return false;
-    if (condition !== "Semua" && i.condition !== condition) return false;
-    if (!q) return true;
-    return [i.name, i.location, i.vendor, i.notes, i.category]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(q));
-  });
+  const list = useMemo(() => {
+    const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+    const filtered = all.filter((i) => {
+      if (category !== "Semua" && i.category !== category) return false;
+      if (condition !== "Semua" && i.condition !== condition) return false;
+      if (!q) return true;
+      return [i.name, i.location, i.vendor, i.notes, i.category]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+
+    return [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "nama-desc":
+          return collator.compare(b.name, a.name);
+        case "kategori-asc":
+          return collator.compare(a.category, b.category) || collator.compare(a.name, b.name);
+        case "lokasi-asc":
+          return (
+            collator.compare(a.location ?? "zzz", b.location ?? "zzz") ||
+            collator.compare(a.name, b.name)
+          );
+        case "harga-desc":
+          return (
+            (b.purchase_price ?? -1) - (a.purchase_price ?? -1) || collator.compare(a.name, b.name)
+          );
+        case "jumlah-desc":
+          return b.quantity - a.quantity || collator.compare(a.name, b.name);
+        default:
+          return collator.compare(a.name, b.name);
+      }
+    });
+  }, [all, category, condition, q, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  useEffect(() => {
+    setPage(1);
+  }, [q, category, condition, sort, pageSize]);
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * pageSize;
+  const pageItems = list.slice(start, start + pageSize);
+
 
   return (
     <AppShell
@@ -151,7 +216,39 @@ function SharedFacilities() {
           </div>
         ) : null}
 
-        <p className="mt-2 text-xs text-muted-foreground">{list.length} fasilitas ditemukan</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Urutkan fasilitas">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {SORT_LABEL[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="h-10 w-36" aria-label="Jumlah per halaman">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZES.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} / halaman
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <p className="mt-2 text-xs text-muted-foreground">
+          {list.length} fasilitas ditemukan
+          {list.length > 0
+            ? ` · menampilkan ${start + 1}–${Math.min(start + pageSize, list.length)}`
+            : ""}
+        </p>
       </div>
 
       {shared.isLoading ? (
@@ -160,9 +257,10 @@ function SharedFacilities() {
         <p className="mt-4 text-sm text-muted-foreground">Tidak ada fasilitas yang cocok.</p>
       ) : (
         <ul className="mt-2 space-y-3">
-          {list.map((item) => (
+          {pageItems.map((item) => (
             <InventoryItemCard
               key={item.id}
+
               name={item.name}
               condition={item.condition}
               quantity={item.quantity}
@@ -245,6 +343,31 @@ function SharedFacilities() {
           ))}
         </ul>
       )}
+
+      {!shared.isLoading && totalPages > 1 ? (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+          >
+            Sebelumnya
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Halaman {current} dari {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current >= totalPages}
+            onClick={() => setPage(current + 1)}
+          >
+            Berikutnya
+          </Button>
+        </div>
+      ) : null}
+
     </AppShell>
   );
 }

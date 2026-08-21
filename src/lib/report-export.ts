@@ -64,18 +64,52 @@ export async function exportExcel(
   XLSX.writeFile(book, filename);
 }
 
-export async function exportPdf(
+export function exportCsv(
   rows: EnrichedRow[],
   columns: ColumnConfig[],
   meta: ExportMeta,
   filename: string,
 ) {
+  const cols = activeColumns(columns);
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines: string[] = [
+    esc(meta.title),
+    esc(`Periode: ${meta.periode}`),
+    esc(`Lingkup: ${meta.lingkup} · Masa manfaat: ${meta.masaManfaat} tahun`),
+    ...meta.ringkasan.map((r) => [esc(r.label), esc(r.value)].join(";")),
+    "",
+    cols.map((c) => esc(c.config.label)).join(";"),
+    ...rows.map((row) =>
+      cols
+        .map((c) => {
+          const value = c.def.value(row);
+          if (value === null) return esc("");
+          if (c.def.type === "currency" || c.def.type === "number") return esc(String(value));
+          return esc(String(value));
+        })
+        .join(";"),
+    ),
+  ];
+
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function buildPdf(rows: EnrichedRow[], columns: ColumnConfig[], meta: ExportMeta) {
   const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const autoTable = autoTableModule.default;
   const cols = activeColumns(columns);
 
   const doc = new jsPDF({ orientation: cols.length > 6 ? "landscape" : "portrait", unit: "pt" });
   const pageWidth = doc.internal.pageSize.getWidth();
+
   const navy: [number, number, number] = [26, 54, 93];
   const softBlue: [number, number, number] = [237, 243, 250];
 
@@ -143,5 +177,25 @@ export async function exportPdf(
     },
   });
 
+  return doc;
+}
+
+export async function exportPdf(
+  rows: EnrichedRow[],
+  columns: ColumnConfig[],
+  meta: ExportMeta,
+  filename: string,
+) {
+  const doc = await buildPdf(rows, columns, meta);
   doc.save(filename);
 }
+
+export async function pdfPreviewUrl(
+  rows: EnrichedRow[],
+  columns: ColumnConfig[],
+  meta: ExportMeta,
+) {
+  const doc = await buildPdf(rows, columns, meta);
+  return URL.createObjectURL(doc.output("blob"));
+}
+

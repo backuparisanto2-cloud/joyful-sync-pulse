@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownUp, FileSpreadsheet, FileText } from "lucide-react";
+import { ArrowDownUp, Eye, FileSpreadsheet, FileText, Table2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { ReportColumnManager } from "@/components/ReportColumnManager";
@@ -36,7 +36,14 @@ import {
   type ColumnKey,
   type SortState,
 } from "@/lib/report-columns";
-import { exportExcel, exportPdf } from "@/lib/report-export";
+import { exportCsv, exportExcel, exportPdf, pdfPreviewUrl } from "@/lib/report-export";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 
 export const Route = createFileRoute("/laporan")({
   component: LaporanPage,
@@ -180,8 +187,10 @@ function LaporanPage() {
   };
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  async function handleExport(kind: "pdf" | "excel") {
+  async function handleExport(kind: "pdf" | "excel" | "csv") {
     if (!visibleColumns.length) {
       toast.error("Pilih minimal satu kolom sebelum ekspor.");
       return;
@@ -189,14 +198,45 @@ function LaporanPage() {
     try {
       if (kind === "pdf") {
         await exportPdf(rows, columns, meta, `laporan-inventaris-${stamp}.pdf`);
-      } else {
+      } else if (kind === "excel") {
         await exportExcel(rows, columns, meta, `laporan-inventaris-${stamp}.xlsx`);
+      } else {
+        exportCsv(rows, columns, meta, `laporan-inventaris-${stamp}.csv`);
       }
-      toast.success(`Laporan ${kind === "pdf" ? "PDF" : "Excel"} berhasil diunduh.`);
+      toast.success(
+        `Laporan ${kind === "pdf" ? "PDF" : kind === "excel" ? "Excel" : "CSV"} berhasil diunduh.`,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal mengekspor laporan.");
     }
   }
+
+  async function openPreview() {
+    if (!visibleColumns.length) {
+      toast.error("Pilih minimal satu kolom sebelum pratinjau.");
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const url = await pdfPreviewUrl(rows, columns, meta);
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat pratinjau.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
 
   function toggleSort(key: ColumnKey) {
     setSort((prev) =>
@@ -474,14 +514,22 @@ function LaporanPage() {
               Pratinjau ekspor{" "}
               <span className="text-sm font-normal text-muted-foreground">({rows.length} baris)</span>
             </h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => handleExport("csv")}>
+                <Table2 className="mr-2 h-4 w-4" /> CSV
+              </Button>
               <Button variant="outline" onClick={() => handleExport("excel")}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+              </Button>
+              <Button variant="outline" onClick={openPreview} disabled={previewLoading}>
+                <Eye className="mr-2 h-4 w-4" />
+                {previewLoading ? "Menyiapkan..." : "Pratinjau PDF"}
               </Button>
               <Button onClick={() => handleExport("pdf")}>
                 <FileText className="mr-2 h-4 w-4" /> PDF
               </Button>
             </div>
+
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-gold-line">
@@ -536,7 +584,42 @@ function LaporanPage() {
             </table>
           </div>
         </section>
+
+        <Dialog open={Boolean(preview)} onOpenChange={(open) => (open ? null : closePreview())}>
+          <DialogContent className="max-w-4xl border-gold-line">
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl">Pratinjau laporan PDF</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Periode: {periodeLabel} · Lingkup: {meta.lingkup} · {rows.length} baris
+            </p>
+            {preview ? (
+              <iframe
+                src={preview}
+                title="Pratinjau laporan PDF"
+                className="h-[65vh] w-full rounded-lg border border-gold-line"
+              />
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" onClick={closePreview}>
+                Tutup
+              </Button>
+              {preview ? (
+                <Button variant="outline" asChild>
+                  <a href={preview} target="_blank" rel="noreferrer">
+                    Buka di tab baru
+                  </a>
+                </Button>
+              ) : null}
+              <Button onClick={() => handleExport("pdf")}>
+                <FileText className="mr-2 h-4 w-4" /> Unduh PDF
+              </Button>
+            </div>
+
+          </DialogContent>
+        </Dialog>
       </div>
+
     </AppShell>
   );
 }
