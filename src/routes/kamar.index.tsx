@@ -52,12 +52,34 @@ const STATUS_LABEL: Record<Status, string> = {
   kosong: "Belum ada barang",
 };
 
+type SortKey =
+  | "nomor-asc"
+  | "nomor-desc"
+  | "lantai-asc"
+  | "lantai-desc"
+  | "unit-desc"
+  | "unit-asc";
+
+const SORT_LABEL: Record<SortKey, string> = {
+  "nomor-asc": "Nomor kamar A → Z",
+  "nomor-desc": "Nomor kamar Z → A",
+  "lantai-asc": "Lantai terendah",
+  "lantai-desc": "Lantai tertinggi",
+  "unit-desc": "Unit barang terbanyak",
+  "unit-asc": "Unit barang tersedikit",
+};
+
+const PAGE_SIZES = [12, 24, 48, 96];
+
 function RoomsPage() {
   const { lantai } = Route.useSearch();
   const rooms = useQuery(roomsQuery);
   const items = useQuery(allRoomItemsQuery);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState<Status>("semua");
+  const [sort, setSort] = useState<SortKey>("nomor-asc");
+  const [pageSize, setPageSize] = useState(24);
+  const [page, setPage] = useState(1);
 
   const perRoom = useMemo(() => {
     const map = new Map<string, { total: number; masalah: number; jenis: number; names: string }>();
@@ -73,19 +95,50 @@ function RoomsPage() {
   }, [items.data]);
 
   const q = keyword.trim().toLowerCase();
-  const list = (rooms.data ?? []).filter((room) => {
-    if (lantai !== 0 && room.floor !== lantai) return false;
-    const stat = perRoom.get(room.id);
-    if (status === "masalah" && !(stat && stat.masalah > 0)) return false;
-    if (status === "baik" && !(stat && stat.jenis > 0 && stat.masalah === 0)) return false;
-    if (status === "kosong" && stat && stat.jenis > 0) return false;
-    if (!q) return true;
-    return (
-      room.number.toLowerCase().includes(q) ||
-      (room.notes ?? "").toLowerCase().includes(q) ||
-      (stat?.names ?? "").includes(q)
-    );
-  });
+  const list = useMemo(() => {
+    const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+    const filteredRooms = (rooms.data ?? []).filter((room) => {
+      if (lantai !== 0 && room.floor !== lantai) return false;
+      const stat = perRoom.get(room.id);
+      if (status === "masalah" && !(stat && stat.masalah > 0)) return false;
+      if (status === "baik" && !(stat && stat.jenis > 0 && stat.masalah === 0)) return false;
+      if (status === "kosong" && stat && stat.jenis > 0) return false;
+      if (!q) return true;
+      return (
+        room.number.toLowerCase().includes(q) ||
+        (room.notes ?? "").toLowerCase().includes(q) ||
+        (stat?.names ?? "").includes(q)
+      );
+    });
+
+    return [...filteredRooms].sort((a, b) => {
+      const unitA = perRoom.get(a.id)?.total ?? 0;
+      const unitB = perRoom.get(b.id)?.total ?? 0;
+      switch (sort) {
+        case "nomor-desc":
+          return collator.compare(b.number, a.number);
+        case "lantai-asc":
+          return a.floor - b.floor || collator.compare(a.number, b.number);
+        case "lantai-desc":
+          return b.floor - a.floor || collator.compare(a.number, b.number);
+        case "unit-desc":
+          return unitB - unitA || collator.compare(a.number, b.number);
+        case "unit-asc":
+          return unitA - unitB || collator.compare(a.number, b.number);
+        default:
+          return collator.compare(a.number, b.number);
+      }
+    });
+  }, [rooms.data, perRoom, lantai, status, q, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  useEffect(() => {
+    setPage(1);
+  }, [q, status, lantai, sort, pageSize]);
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * pageSize;
+  const pageRooms = list.slice(start, start + pageSize);
+
 
   return (
     <AppShell title="Kamar" subtitle="Cari kamar atau barang, lalu ubah inventarisnya.">
