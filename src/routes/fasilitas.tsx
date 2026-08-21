@@ -56,10 +56,32 @@ export const Route = createFileRoute("/fasilitas")({
   component: SharedFacilities,
 });
 
+type SortKey =
+  | "nama-asc"
+  | "nama-desc"
+  | "kategori-asc"
+  | "lokasi-asc"
+  | "harga-desc"
+  | "jumlah-desc";
+
+const SORT_LABEL: Record<SortKey, string> = {
+  "nama-asc": "Nama A → Z",
+  "nama-desc": "Nama Z → A",
+  "kategori-asc": "Kategori A → Z",
+  "lokasi-asc": "Lokasi / lantai A → Z",
+  "harga-desc": "Harga tertinggi",
+  "jumlah-desc": "Jumlah terbanyak",
+};
+
+const PAGE_SIZES = [10, 25, 50, 100];
+
 function SharedFacilities() {
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState<string>("Semua");
   const [condition, setCondition] = useState<string>("Semua");
+  const [sort, setSort] = useState<SortKey>("nama-asc");
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const shared = useQuery(sharedItemsQuery);
 
@@ -77,14 +99,48 @@ function SharedFacilities() {
     ...Array.from(new Set(all.map((i) => i.condition))).sort(),
   ];
   const q = keyword.trim().toLowerCase();
-  const list = all.filter((i) => {
-    if (category !== "Semua" && i.category !== category) return false;
-    if (condition !== "Semua" && i.condition !== condition) return false;
-    if (!q) return true;
-    return [i.name, i.location, i.vendor, i.notes, i.category]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(q));
-  });
+  const list = useMemo(() => {
+    const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+    const filtered = all.filter((i) => {
+      if (category !== "Semua" && i.category !== category) return false;
+      if (condition !== "Semua" && i.condition !== condition) return false;
+      if (!q) return true;
+      return [i.name, i.location, i.vendor, i.notes, i.category]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+
+    return [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "nama-desc":
+          return collator.compare(b.name, a.name);
+        case "kategori-asc":
+          return collator.compare(a.category, b.category) || collator.compare(a.name, b.name);
+        case "lokasi-asc":
+          return (
+            collator.compare(a.location ?? "zzz", b.location ?? "zzz") ||
+            collator.compare(a.name, b.name)
+          );
+        case "harga-desc":
+          return (
+            (b.purchase_price ?? -1) - (a.purchase_price ?? -1) || collator.compare(a.name, b.name)
+          );
+        case "jumlah-desc":
+          return b.quantity - a.quantity || collator.compare(a.name, b.name);
+        default:
+          return collator.compare(a.name, b.name);
+      }
+    });
+  }, [all, category, condition, q, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  useEffect(() => {
+    setPage(1);
+  }, [q, category, condition, sort, pageSize]);
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * pageSize;
+  const pageItems = list.slice(start, start + pageSize);
+
 
   return (
     <AppShell
