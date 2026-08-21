@@ -1,13 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { allRoomItemsQuery, roomsQuery } from "@/lib/inventory";
 
 type Search = { lantai: number };
+
 
 export const Route = createFileRoute("/kamar/")({
   validateSearch: (search: Record<string, unknown>): Search => {
