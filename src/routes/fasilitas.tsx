@@ -62,11 +62,19 @@ function SharedFacilities() {
 
   const all = shared.data ?? [];
   const categories = ["Semua", ...Array.from(new Set(all.map((i) => i.category))).sort()];
-  const list = all.filter(
-    (i) =>
-      (category === "Semua" || i.category === category) &&
-      i.name.toLowerCase().includes(keyword.trim().toLowerCase()),
-  );
+  const conditionOptions = [
+    "Semua",
+    ...Array.from(new Set(all.map((i) => i.condition))).sort(),
+  ];
+  const q = keyword.trim().toLowerCase();
+  const list = all.filter((i) => {
+    if (category !== "Semua" && i.category !== category) return false;
+    if (condition !== "Semua" && i.condition !== condition) return false;
+    if (!q) return true;
+    return [i.name, i.location, i.vendor, i.notes, i.category]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
 
   return (
     <AppShell
