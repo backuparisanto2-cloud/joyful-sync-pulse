@@ -216,7 +216,39 @@ function SharedFacilities() {
           </div>
         ) : null}
 
-        <p className="mt-2 text-xs text-muted-foreground">{list.length} fasilitas ditemukan</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Urutkan fasilitas">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {SORT_LABEL[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="h-10 w-36" aria-label="Jumlah per halaman">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZES.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} / halaman
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <p className="mt-2 text-xs text-muted-foreground">
+          {list.length} fasilitas ditemukan
+          {list.length > 0
+            ? ` · menampilkan ${start + 1}–${Math.min(start + pageSize, list.length)}`
+            : ""}
+        </p>
       </div>
 
       {shared.isLoading ? (
@@ -225,9 +257,10 @@ function SharedFacilities() {
         <p className="mt-4 text-sm text-muted-foreground">Tidak ada fasilitas yang cocok.</p>
       ) : (
         <ul className="mt-2 space-y-3">
-          {list.map((item) => (
+          {pageItems.map((item) => (
             <InventoryItemCard
               key={item.id}
+
               name={item.name}
               condition={item.condition}
               quantity={item.quantity}
