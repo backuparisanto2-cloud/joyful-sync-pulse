@@ -514,14 +514,22 @@ function LaporanPage() {
               Pratinjau ekspor{" "}
               <span className="text-sm font-normal text-muted-foreground">({rows.length} baris)</span>
             </h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => handleExport("csv")}>
+                <Table2 className="mr-2 h-4 w-4" /> CSV
+              </Button>
               <Button variant="outline" onClick={() => handleExport("excel")}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+              </Button>
+              <Button variant="outline" onClick={openPreview} disabled={previewLoading}>
+                <Eye className="mr-2 h-4 w-4" />
+                {previewLoading ? "Menyiapkan..." : "Pratinjau PDF"}
               </Button>
               <Button onClick={() => handleExport("pdf")}>
                 <FileText className="mr-2 h-4 w-4" /> PDF
               </Button>
             </div>
+
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-gold-line">
