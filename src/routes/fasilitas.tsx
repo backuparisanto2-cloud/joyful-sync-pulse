@@ -343,6 +343,31 @@ function SharedFacilities() {
           ))}
         </ul>
       )}
+
+      {!shared.isLoading && totalPages > 1 ? (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+          >
+            Sebelumnya
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Halaman {current} dari {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current >= totalPages}
+            onClick={() => setPage(current + 1)}
+          >
+            Berikutnya
+          </Button>
+        </div>
+      ) : null}
+
     </AppShell>
   );
 }
