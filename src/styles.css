@@ -167,9 +167,15 @@
   }
 }
 
+@keyframes splash-bar {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+
 @utility gold-rule {
   border-bottom: 1px solid var(--gold-line);
 }
+
 
 @utility gold-card {
   background-color: var(--card);
