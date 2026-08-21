@@ -187,14 +187,46 @@ function RoomsPage() {
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">{list.length} kamar ditemukan</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+          <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Urutkan kamar">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+              <SelectItem key={k} value={k}>
+                {SORT_LABEL[k]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+          <SelectTrigger className="h-10 w-36" aria-label="Jumlah per halaman">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((n) => (
+              <SelectItem key={n} value={String(n)}>
+                {n} / halaman
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        {list.length} kamar ditemukan
+        {list.length > 0
+          ? ` · menampilkan ${start + 1}–${Math.min(start + pageSize, list.length)}`
+          : ""}
+      </p>
 
       <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {rooms.isLoading
           ? Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl border border-gold-line" />
             ))
-          : list.map((room) => {
+          : pageRooms.map((room) => {
               const stat = perRoom.get(room.id) ?? { total: 0, masalah: 0 };
               return (
                 <Link
@@ -215,6 +247,31 @@ function RoomsPage() {
               );
             })}
       </div>
+
+      {!rooms.isLoading && totalPages > 1 ? (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+          >
+            Sebelumnya
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Halaman {current} dari {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={current >= totalPages}
+            onClick={() => setPage(current + 1)}
+          >
+            Berikutnya
+          </Button>
+        </div>
+      ) : null}
+
 
       {!rooms.isLoading && list.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
